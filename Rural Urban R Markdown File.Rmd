@@ -1,0 +1,147 @@
+---
+title: "Rural Urban"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+  html_notebook:
+    code_folding: hide
+    float_toc:
+      collapsed: yes
+      smooth_scroll: yes
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+
+###DRAFT AIMS
+**Aim 1**
+**Aim 2**
+**Aim 3**
+
+
+###PRELIMINARY DATA
+
+###DATA Sources
+
+###Variables
+
+###Methods
+```{r}
+# LIBRARIES ------------------------------------------
+#install.packages("car")
+library(tidyverse) # for various packages
+library(haven) # for reading Stata file
+library(labelled) # for getting variable labels
+library(magrittr) # for extra %$% pipe
+library(car) # for regression diagnostics
+library(sandwich) # for heteroskedasticy-robust SEs
+library(lmtest) # for coeftest (SEs for heteroskedasticity)
+library(gridExtra) # for combining ggplots
+library(tidyr)
+library(knitr)
+
+```
+
+```{r datareadin}
+
+ru <- read_sav("https://github.com/kijohnson/Rural-Urban-Cancer/blob/master/MO%20IL%20cancer.sav?raw=true")
+View(ru)
+```
+
+##Create M:I ratio as a measure of survival. From
+```{r}
+ru$MtoI=ru$Mortality/ru$Incidence
+```
+
+
+###Mortality to Incidence Ratios with MO and IL data combined 
+
+```{r sboth }
+
+linearreg_ratio <-lm(formula = MtoI ~ as.factor(UIC_2013),data=ru)
+summary(linearreg_ratio)
+
+plot(ru$UIC_2013,ru$MtoI)
+require('ggplot2')
+ggplot(ru, aes(x=as.numeric(UIC_2013), y= MtoI)) +geom_smooth()#plotting the data for both 
+
+
+```
+
+###Survival for MO
+
+```{r sMO}
+ruMO <- subset(ru,State==0) #how to select a dataset with only certain characteristics #0 state is MO
+ruIL <- subset(ru,State==1) 
+
+linear_MO <-lm(formula = MtoI ~ as.factor(UIC_2013),data = ruMO)
+summary(linear_MO)
+
+plot(ruMO$UIC_2013,ruMO$MtoI)
+require('ggplot2')
+ggplot(ruMO, aes(x=as.numeric(ruMO$UIC_2013), y= ruMO$MtoI))+geom_line()
+ggplot(ruMO, aes(x=as.numeric(ruMO$UIC_2013), y= ruMO$MtoI))+geom_smooth() #plotting the data for MO
+```
+
+###Survival for IL
+
+```{r sIL}
+linear_IL <-lm(formula = MtoI ~ as.factor(UIC_2013),data = ruIL)
+summary(linear_MO)
+
+plot(ruIL$UIC_2013,ruIL$MtoI)
+require('ggplot2')
+ggplot(ruIL, aes(x=as.numeric(ruIL$UIC_2013), y= ruIL$MtoI))+geom_line()
+ggplot(ruIL, aes(x=as.numeric(ruIL$UIC_2013), y= ruIL$MtoI))+geom_smooth() #plotting the data for MO
+
+```
+##Group UIC_2013 codes into Metro (1,2) no-metro (3-12) and metro (1,2), micropolitan (3,5,8), and rural/noncore (4,6,7,9-12)
+1 and 2 to be metro, 3,5,and 8 to be micropolitan, and then the rest are rural noncore.  
+```{r}
+ru$metro[ru$UIC_2013<=2]<-0
+ru$metro[ru$UIC_2013>2]<-1
+
+ru$metro2[ru$UIC_2013<=2]<-0
+ru$metro2[ru$UIC_2013==3|ru$UIC_2013==5|ru$UIC_2013==8]<-1
+ru$metro2[ru$UIC_2013==4|ru$UIC_2013==6|ru$UIC_2013==7|ru$UIC_2013>=9]<-2
+
+ordered(ru$metro,levels = c(0, 1),labels = c("Metro", "Non-Metro"))
+ordered(ru$metro2, levels = c(0,1,2), labels=c("Metro", "Micropolitan", "Rural/Noncare"))
+
+
+```
+#merge variable in with ruMO and ruIL datasets
+```{r}
+ruMO2<-merge(ruMO[c(1)], subset(ru, State==0), by="County_Name")
+ruIL2<-merge(ruIL[c(1)], subset(ru, State==1), by="County_Name")
+
+```
+
+```{r}
+
+linear_both <-lm(formula = MtoI ~ as.factor(ru$metro), data = ru)
+summary(linear_both)
+
+linear_MO <-lm(formula = MtoI ~ as.factor(ruMO2$metro), data = ruMO2)
+summary(linear_MO)
+
+linear_IL <-lm(formula = MtoI ~ as.factor(ruIL2$metro), data = ruIL2)
+summary(linear_IL)
+```
+
+##
+```{r}
+
+linear_both <-lm(formula = MtoI ~ as.factor(ru$metro2), data = ru)
+summary(linear_both)
+
+linear_MO <-lm(formula = MtoI ~ as.factor(ruMO2$metro2), data = ruMO2)
+summary(linear_MO)
+
+linear_IL <-lm(formula = MtoI ~ as.factor(ruIL2$metro2), data = ruIL2)
+summary(linear_IL)
+```
+
